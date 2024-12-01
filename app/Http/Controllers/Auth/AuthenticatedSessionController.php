@@ -3,45 +3,49 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Auth\LoginRequest;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
+use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
-    public function create(): View
+    public function create()
     {
-        return view('auth.login');
+        return view('auth.login'); // Student login form
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(Request $request)
     {
-        $request->authenticate();
+        // Validate the login credentials
+        $credentials = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required'],
+        ]);
 
-        $request->session()->regenerate();
+        // Attempt to log the user in with the 'web' guard
+        if (Auth::guard('web')->attempt($credentials)) {
+            // Regenerate session to prevent fixation
+            $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+            // Redirect to student dashboard or any desired route
+            return redirect()->intended('dashboard');
+        }
+
+        // If login attempt fails, return error
+        throw ValidationException::withMessages([
+            'email' => __('auth.failed'), // Default message: "These credentials do not match our records."
+        ]);
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request)
     {
-        Auth::guard('web')->logout();
+        Auth::logout();  // Log the user out
 
-        $request->session()->invalidate();
+        $request->session()->invalidate();  // Invalidate the session
 
-        $request->session()->regenerateToken();
+        $request->session()->regenerateToken();  // Regenerate the CSRF token
 
-        return redirect('/');
+
+        return redirect('/'); // Redirect to login after logout
     }
 }
